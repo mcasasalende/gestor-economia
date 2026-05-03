@@ -3,7 +3,7 @@ import re
 import joblib
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -28,16 +28,18 @@ class CategoryClassifier:
     def _init_pipeline(self):
         self.pipeline = Pipeline([
             ('tfidf', TfidfVectorizer(
-                max_features=1000,
-                ngram_range=(1, 2),
+                max_features=2000,
+                ngram_range=(1, 3),
                 lowercase=True,
-                strip_accents='unicode'
+                strip_accents='unicode',
+                min_df=1,
+                max_df=0.95
             )),
-            ('clf', LogisticRegression(
-                max_iter=1000,
-                class_weight='balanced',
-                random_state=42,
-                multi_class='multinomial'
+            ('clf', GradientBoostingClassifier(
+                n_estimators=150,
+                max_depth=5,
+                learning_rate=0.1,
+                random_state=42
             ))
         ])
 
@@ -116,6 +118,62 @@ class CategoryClassifier:
         
         print(f"Trained on {len(X)} samples from database")
 
+    def train_from_csv(self, csv_path: str, save: bool = True):
+        """Train model from manually labeled CSV file."""
+        df = pd.read_csv(csv_path)
+        
+        X = df['concept'].fillna('').str.lower().tolist()
+        y = df['category'].tolist()
+        
+        if not X:
+            print("No training data in CSV")
+            return
+        
+        self.categories = list(set(y))
+        
+        self.pipeline.fit(X, y)
+        
+        if save:
+            self.save()
+        
+        print(f"Trained on {len(X)} labeled samples from CSV")
+
+    def train_with_fallback(self, csv_path: str, config: dict, save: bool = True):
+        """Train on labeled data, use keyword fallback for unmapped categories."""
+        df = pd.read_csv(csv_path)
+        
+        known_categories = set(c['name'] for c in config.get('categories', []))
+        
+        X = df['concept'].fillna('').str.lower().tolist()
+        y = df['category'].tolist()
+        
+        X_train = []
+        y_train = []
+        X_unknown = []
+        
+        for desc, cat in zip(X, y):
+            if cat in known_categories:
+                X_train.append(desc)
+                y_train.append(cat)
+            else:
+                X_unknown.append(desc)
+        
+        if X_train:
+            self.categories = list(set(y_train))
+            self.pipeline.fit(X_train, y_train)
+            print(f"Trained on {len(X_train)} labeled samples")
+        else:
+            print("No valid training data")
+            return
+        
+        if X_unknown:
+            keyword_clf = KeywordClassifier(config)
+            keyword_preds = keyword_clf.predict(X_unknown)
+            print(f"Used keyword fallback for {len(X_unknown)} unknown categories")
+        
+        if save:
+            self.save()
+
     def predict(self, descriptions: list) -> list:
         """Predict categories for a list of descriptions."""
         if self.pipeline is None:
@@ -127,10 +185,10 @@ class CategoryClassifier:
     def predict_with_fallback(self, descriptions: list, config: dict, threshold: float = 0.5) -> list:
         """Predict with keyword fallback for low-confidence ML predictions."""
         keyword_clf = KeywordClassifier(config)
-        
+
         probas = self.predict_proba(descriptions)
         ml_predictions = self.predict(descriptions)
-        
+
         final = []
         for i, prob_list in enumerate(probas):
             top_proba = prob_list[0][1]
@@ -139,7 +197,23 @@ class CategoryClassifier:
             else:
                 keyword_preds = keyword_clf.predict([descriptions[i]])
                 final.append(keyword_preds[0])
-        
+
+        return final
+
+    def predict_hybrid(self, descriptions: list, config: dict) -> list:
+        """Keyword-first, ML fallback for unmapped categories."""
+        keyword_clf = KeywordClassifier(config)
+
+        keyword_preds = keyword_clf.predict(descriptions)
+        ml_predictions = self.predict(descriptions)
+
+        final = []
+        for kw_pred, ml_pred in zip(keyword_preds, ml_predictions):
+            if kw_pred == 'Other':
+                final.append(ml_pred)
+            else:
+                final.append(kw_pred)
+
         return final
 
     def predict_proba(self, descriptions: list) -> list:

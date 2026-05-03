@@ -32,8 +32,6 @@ categories:
       - "Donner"
       - "KFC"
       - "Subway"
-      - "Burger King"
-      - "Starbucks"
 
   - name: "Transport"
     keywords:
@@ -53,6 +51,17 @@ categories:
       - "parking"
       - "aparcamiento"
       - "transporte"
+
+  - name: "Party"
+    keywords:
+      - "Discoteca"
+      - "Vanitas"
+      - "Bloom"
+      - "Blaster"
+      - "Miudo"
+      - "Conga"
+      - "Bali"
+      - "Fiji"
 
   - name: "Utilities"
     keywords:

@@ -9,10 +9,10 @@ disable-model-invocation: true
 ## Run (repo root)
 
 ```powershell
-.venv/Scripts/python.exe -m streamlit run src/dashboard/app.py
+.venv/Scripts/python.exe -m streamlit run src/dashboard/app.py --server.address=127.0.0.1
 ```
 
-Default URL: `http://localhost:8501`
+Default URL: `http://127.0.0.1:8501` (local only, network disabled)
 
 ## Data source
 
