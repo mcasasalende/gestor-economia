@@ -44,9 +44,15 @@ def ensure_dirs():
     DB_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def run_ingestion(file_path: str = None, move_raw: bool = True, from_raw: bool = False):
+def run_ingestion(file_path: str = None, move_raw: bool = True, from_raw: bool = False, clear_db: bool = True):
     """Run the ingestion pipeline."""
     print("\n=== INGESTION ===")
+    
+    if clear_db:
+        reset_database(normalized=False)
+        if NORMALIZED_DB.exists():
+            NORMALIZED_DB.unlink()
+            print(f"Removed: {NORMALIZED_DB}")
     
     if file_path is None:
         search_dir = str(RAW_DIR) if from_raw else None
@@ -175,6 +181,7 @@ def main():
     parser.add_argument('--no-move', action='store_true', help='Do not move raw file')
     parser.add_argument('--reset', action='store_true', help='Reset databases')
     parser.add_argument('--reset-normalized', action='store_true', help='Reset normalized database only')
+    parser.add_argument('--no-clear', action='store_true', help='Do not clear database before ingestion')
     parser.add_argument('--summary', '-s', action='store_true', help='Show summary only')
     
     args = parser.parse_args()
@@ -193,7 +200,7 @@ def main():
         show_summary()
         return
     
-    df = run_ingestion(file_path=args.file, move_raw=not args.no_move, from_raw=args.raw)
+    df = run_ingestion(file_path=args.file, move_raw=not args.no_move, from_raw=args.raw, clear_db=not args.no_clear)
     
     if len(df) == 0:
         print("No transactions found")

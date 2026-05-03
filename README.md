@@ -67,6 +67,7 @@ To process all files in `data/raw/`:
 |------|-------------|
 | `-f, --file` | Path to transaction XLS file |
 | `--no-move` | Keep original file in place (don't move to `data/raw/`) |
+| `--no-clear` | Don't clear database before ingestion (default: clears) |
 | `--skip-ml` | Use keyword classifier instead of ML model |
 | `-s, --summary` | Show summary only (no ingestion) |
 | `--reset` | Reset both databases |
@@ -104,7 +105,25 @@ Edit `config/categories.yaml` to customize categories and their keywords. The ML
 
 ## Workflow
 
-1. **Ingestion**: Read XLS file → store in `ingestion.db` → move file to `data/raw/`
+1. **Ingestion**: Read XLS file → store in `ingestion.db` → move file to `data/raw/` (database is cleared first by default)
 2. **Normalization**: Clean data → create normalized tables in `normalized.db`
 3. **Categorization**: ML model classifies transactions based on description
 4. **Summary**: Display spending by category and month
+
+## Dashboard
+
+Run the visualization dashboard:
+
+```bash
+.venv\Scripts\python.exe -m streamlit run src/dashboard/app.py
+```
+
+Then open http://localhost:8501 in your browser.
+
+The dashboard shows:
+- **Pie chart**: Current month expenses by category
+- **Bar chart**: Monthly expenses grouped by month
+- **Stacked bar**: Cumulative expenses by category over time
+- **Metrics**: Total income, expenses, and net balance
+
+Use the sidebar to filter by year and month.

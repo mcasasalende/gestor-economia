@@ -124,6 +124,24 @@ class CategoryClassifier:
         predictions = self.pipeline.predict(descriptions)
         return predictions.tolist()
 
+    def predict_with_fallback(self, descriptions: list, config: dict, threshold: float = 0.5) -> list:
+        """Predict with keyword fallback for low-confidence ML predictions."""
+        keyword_clf = KeywordClassifier(config)
+        
+        probas = self.predict_proba(descriptions)
+        ml_predictions = self.predict(descriptions)
+        
+        final = []
+        for i, prob_list in enumerate(probas):
+            top_proba = prob_list[0][1]
+            if top_proba >= threshold:
+                final.append(ml_predictions[i])
+            else:
+                keyword_preds = keyword_clf.predict([descriptions[i]])
+                final.append(keyword_preds[0])
+        
+        return final
+
     def predict_proba(self, descriptions: list) -> list:
         """Predict category probabilities for descriptions."""
         if self.pipeline is None:
@@ -163,6 +181,8 @@ class CategoryClassifier:
 class KeywordClassifier:
     """Fallback keyword-based classifier."""
 
+    PRIORITY_KEYWORDS = ['alquiler', 'rent', 'booking', 'hotel', 'airbnb', 'splintersmma', 'splinters', 'gym', 'ahorro', 'saving', 'salary', 'nomina']
+
     def __init__(self, config: dict):
         self.categories = {}
         
@@ -180,8 +200,23 @@ class KeywordClassifier:
             best_match = 'Other'
             best_score = 0
             
+            priority_match = None
+            for priority_kw in self.PRIORITY_KEYWORDS:
+                if priority_kw in desc_lower:
+                    priority_match = priority_kw
+                    break
+            
+            if priority_match:
+                for cat_name, keywords in self.categories.items():
+                    if priority_match in keywords:
+                        predictions.append(cat_name)
+                        break
+                else:
+                    predictions.append('Other')
+                continue
+            
             for cat_name, keywords in self.categories.items():
-                score = sum(1 for kw in keywords if kw in desc_lower)
+                score = sum(len(kw) for kw in keywords if kw in desc_lower)
                 if score > best_score:
                     best_score = score
                     best_match = cat_name

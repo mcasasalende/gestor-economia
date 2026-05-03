@@ -1,4 +1,5 @@
 import os
+import yaml
 from datetime import datetime
 from sqlalchemy import create_engine, text
 import pandas as pd
@@ -203,16 +204,26 @@ class DataNormalizer:
         self.target_db.bulk_insert_transactions(transactions)
         print(f"Normalized {len(transactions)} transactions")
 
-    def update_categories(self, ml_classifier):
-        """Update transaction categories using ML classifier."""
+    def update_categories(self, ml_classifier, use_fallback: bool = True, fallback_threshold: float = 0.5):
+        """Update transaction categories using ML classifier with optional fallback."""
+        from pathlib import Path
+        
+        config_path = Path(__file__).parent.parent.parent / "config" / "categories.yaml"
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        
         df = self.target_db.get_unclassified_transactions()
         
         if df.empty:
             print("No unclassified transactions")
             return
-
+        
         descriptions = df['description'].tolist()
-        categories = ml_classifier.predict(descriptions)
+        
+        if use_fallback and hasattr(ml_classifier, 'predict_with_fallback'):
+            categories = ml_classifier.predict_with_fallback(descriptions, config, fallback_threshold)
+        else:
+            categories = ml_classifier.predict(descriptions)
 
         for idx, (_, row) in enumerate(df.iterrows()):
             cat_id = self.target_db.get_category_id(categories[idx])
