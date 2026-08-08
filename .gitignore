@@ -29,10 +29,14 @@ env/
 # Data (sensitive)
 data/raw/
 data/db/
+data/export/
 *.db
 *.xls
 *.xlsx
 *.csv
+
+# Mobile app (Capacitor)
+app/node_modules/
 
 # IDE
 .vscode/

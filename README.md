@@ -37,6 +37,7 @@ Parses **Santander bank transaction exports** (`.xls` format), stores them in SQ
 | `--no-move` | Keep original file in place (don't move to `data/raw/`) |
 | `--no-clear` | Don't clear database before ingestion |
 | `--skip-ml` | Use keyword classifier instead of ML model |
+| `--export` | Export `snapshot.json.gz` for the mobile app (also runs at end of pipeline) |
 | `-s, --summary` | Show summary only (no ingestion) |
 | `--reset` | Reset both databases |
 | `--reset-normalized` | Reset normalized database only |
@@ -98,23 +99,79 @@ Use the sidebar filters to switch between years and months.
 
 ---
 
+## Mobile app (Android APK)
+
+A companion Android app shows the same dashboard on your phone. The **ML model runs only on the PC** — the app is a WebView (Capacitor) that downloads a pre-categorized data snapshot and caches it offline.
+
+### Data access layer
+
+```
+PC (pipeline + ML)                         Phone (APK)
+──────────────────                         ─────────────
+normalized.db ──► main.py --export ──► snapshot.json.gz
+                     │                          │
+                     ▼                          ▼  HTTPS + Bearer token
+             run_api.ps1 (server) ──────────► WebView dashboard
+                     │                          │
+                     └── (CORS + optional auth) └─► IndexedDB cache (offline)
+```
+
+1. **Export** — `main.py --export` dumps the categorized transactions to `data/export/snapshot.json.gz` (a few hundred KB). Add `--export` to any pipeline run to export automatically.
+2. **Serve** — `run_api.ps1` starts a tiny HTTP server (`src/export/server.py`) on port 8000 serving:
+   - `GET /snapshot.json` — the snapshot (gzip auto-decoded by the app)
+   - `GET /healthz` — health check
+   - `GET /` — browser preview of the mobile dashboard (with `-Web`)
+   - Optional token auth: `run_api.ps1 -Token "secret"` → app sends `Authorization: Bearer secret`
+3. **Secure internet access** (your phone reaches the PC from anywhere) — recommended:
+   - **Tailscale**: install on PC + phone, both on the same tailnet; serve with HTTPS certs, zero open ports. Easiest and safest.
+   - **Alternative**: `ngrok http 8000` or a Caddy reverse proxy with basic auth + HTTPS. Never expose the server to the public internet without auth + HTTPS.
+
+### Build the APK
+
+Requirements: Node.js, Android Studio (bundles JDK 17 + SDK).
+
+```powershell
+cd app
+npm install
+npx cap sync android        # copy web assets into the Android project
+npx cap open android        # opens Android Studio
+```
+
+In Android Studio: **Build → Build APK(s)** → APK is written to
+`app/android/app/build/outputs/apk/debug/app-debug.apk`. Transfer it to the phone and install (allow unknown sources). Debug builds are signed automatically; fine for personal use.
+
+### Configure the app
+
+- **Snapshot URL + token**: on first launch, open the ⚙ settings and enter the URL (e.g. `https://your-pc.tailnet.ts.net/snapshot.json`) and the token. Saved on the phone.
+- Or hard-code a default in `app/web/js/config.js` (`DEFAULT_SNAPSHOT_URL`) before building.
+- **Refresh**: the ↻ button re-syncs. If the PC is unreachable, the app shows the cached snapshot with a "Offline" banner — the dashboard always works from the last sync.
+- If you edit files in `app/web/`, re-run `npx cap sync android` before rebuilding.
+
+---
+
 ## Project structure
 
 ```
 gestor-economia/
 ├── main.py                   # Pipeline entry point
+├── run_api.ps1               # Serve the mobile snapshot (CORS + optional auth)
 ├── config/
 │   └── categories.yaml       # Category definitions & keywords
 ├── data/
 │   ├── raw/                  # Original XLS files (moved here after ingestion)
+│   ├── export/               # snapshot.json.gz for the mobile app (generated)
 │   └── db/
 │       ├── ingestion.db      # Raw transaction rows
 │       ├── normalized.db     # Clean, categorized transactions
 │       └── category_model.pkl # Trained ML pipeline
+├── app/                      # Mobile app (Capacitor WebView)
+│   ├── web/                  # Mobile dashboard (HTML/JS + Chart.js)
+│   └── android/              # Generated Android project (build APK here)
 └── src/
     ├── ingestion/reader.py   # XLS parsing & raw DB storage
     ├── normalization/        # Cleaning and schema creation
     ├── ml/classifier.py      # ML model (GradientBoosting) + keyword fallback
+    ├── export/               # Snapshot export + HTTP server for the app
     └── dashboard/app.py      # Streamlit dashboard
 ```
 

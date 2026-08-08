@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>Economy Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-title">
+      <h1>Economy Dashboard</h1>
+      <span id="status" class="status status-idle">…</span>
+    </div>
+    <div class="app-actions">
+      <button id="btn-refresh" class="icon-btn" title="Sync now" aria-label="Sync now">&#8635;</button>
+      <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">&#9881;</button>
+    </div>
+  </header>
+
+  <section id="settings" class="settings hidden">
+    <label>Snapshot URL <input id="input-url" type="url" placeholder="https://your-pc.tailnet.ts.net/snapshot.json"></label>
+    <label>Token (optional) <input id="input-token" type="password" placeholder="Bearer token"></label>
+    <div class="settings-actions">
+      <button id="btn-save" class="btn">Save</button>
+      <button id="btn-clear-cache" class="btn btn-ghost">Clear cache</button>
+    </div>
+  </section>
+
+  <main id="app" class="app-body">
+    <p class="empty" id="empty">Loading…</p>
+
+    <section id="controls" class="hidden">
+      <div class="period">
+        <div class="chip-row" id="year-chips"></div>
+        <div class="chip-row" id="month-chips"></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi">
+          <span class="kpi-label">Income</span>
+          <span class="kpi-value kpi-income" id="kpi-income">&euro;0.00</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Expenses</span>
+          <span class="kpi-value kpi-expenses" id="kpi-expenses">&euro;0.00</span>
+        </div>
+        <div class="kpi">
+          <span class="kpi-label">Net</span>
+          <span class="kpi-value kpi-net" id="kpi-net">&euro;0.00</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="card">
+        <h2 id="title-category">Expenses by Category</h2>
+        <div class="chart-wrap"><canvas id="chart-category"></canvas></div>
+        <p class="chart-empty hidden" id="empty-category">No expenses for this period</p>
+      </div>
+
+      <div class="card">
+        <h2>Monthly Expenses</h2>
+        <div class="chart-wrap"><canvas id="chart-monthly"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Cumulative Expenses by Category</h2>
+        <div class="chart-wrap"><canvas id="chart-stacked"></canvas></div>
+      </div>
+
+      <div class="card hidden" id="transactions-card">
+        <h2 id="transactions-title">Transactions</h2>
+        <ul class="tx-list" id="transactions-list"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script src="vendor/chart.umd.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

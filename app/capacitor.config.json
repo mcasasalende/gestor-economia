@@ -1,0 +1,8 @@
+{
+  "appId": "com.gestoreconomia.dashboard",
+  "appName": "Economy Dashboard",
+  "webDir": "web",
+  "server": {
+    "androidScheme": "https"
+  }
+}
