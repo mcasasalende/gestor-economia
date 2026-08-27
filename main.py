@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src.ingestion.reader import TransactionReader, DatabaseIngestor, FileFinder
 from src.normalization.cleaner import DataNormalizer, NormalizedDatabase
 from src.ml.classifier import CategoryClassifier, KeywordClassifier
+from src.export.exporter import export as export_snapshot
 
 
 BASE_DIR = Path(__file__).parent
@@ -253,6 +254,7 @@ def main():
     parser.add_argument('--reset', action='store_true', help='Reset databases')
     parser.add_argument('--reset-normalized', action='store_true', help='Reset normalized database only')
     parser.add_argument('--no-clear', action='store_true', help='Do not clear database before ingestion')
+    parser.add_argument('--export', action='store_true', help='Export snapshot.json.gz for the mobile app')
     parser.add_argument('--summary', '-s', action='store_true', help='Show summary only')
 
     args = parser.parse_args()
@@ -275,6 +277,10 @@ def main():
         show_summary()
         return
 
+    if args.export and not (args.file or args.raw):
+        export_snapshot()
+        return
+
     df = run_ingestion(file_path=args.file, move_raw=not args.no_move, from_raw=args.raw, clear_db=not args.no_clear)
 
     if len(df) == 0:
@@ -291,6 +297,9 @@ def main():
     )
 
     show_summary()
+
+    if args.export:
+        export_snapshot()
 
     print("\n=== COMPLETE ===")
 

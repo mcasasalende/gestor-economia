@@ -1,0 +1,174 @@
+:root {
+  --bg: #0f172a;
+  --bg-card: #1e293b;
+  --bg-chip: #334155;
+  --fg: #e2e8f0;
+  --fg-muted: #94a3b8;
+  --accent: #38bdf8;
+  --income: #34d399;
+  --expense: #f87171;
+  --net-pos: #34d399;
+  --net-neg: #f87171;
+  --border: #334155;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  min-height: 100%;
+}
+
+body { padding-bottom: env(safe-area-inset-bottom); }
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-title h1 { font-size: 1.05rem; font-weight: 600; }
+
+.status { font-size: 0.72rem; color: var(--fg-muted); }
+.status-ok { color: var(--income); }
+.status-offline { color: #fbbf24; }
+.status-error { color: var(--expense); }
+
+.app-actions { display: flex; gap: 8px; }
+
+.icon-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.icon-btn:active { transform: scale(0.96); }
+
+.settings {
+  margin: 12px 16px;
+  padding: 14px;
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+.settings input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+.settings-actions { display: flex; gap: 8px; }
+.btn {
+  background: var(--accent);
+  color: #0f172a;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-ghost { background: var(--bg-chip); color: var(--fg); }
+
+.app-body { max-width: 520px; margin: 0 auto; padding: 0 16px 32px; }
+
+.empty { text-align: center; color: var(--fg-muted); padding: 40px 0; }
+
+.period { margin: 16px 0; }
+
+.chip-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.chip-row + .chip-row { margin-top: 8px; }
+
+.chip {
+  flex: 0 0 auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.chip.active { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 600; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  text-align: center;
+}
+.kpi-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-muted); }
+.kpi-value { display: block; margin-top: 4px; font-size: 1rem; font-weight: 700; }
+.kpi-income { color: var(--income); }
+.kpi-expenses { color: var(--expense); }
+.kpi-net.positive { color: var(--net-pos); }
+.kpi-net.negative { color: var(--net-neg); }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.card h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; }
+
+.chart-wrap { position: relative; height: 260px; }
+.chart-wrap.tall { height: 320px; }
+
+.chart-empty { text-align: center; color: var(--fg-muted); padding: 40px 0; font-size: 0.9rem; }
+
+.tx-list { list-style: none; }
+.tx-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+}
+.tx-list li:last-child { border-bottom: none; }
+.tx-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tx-desc { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-date { font-size: 0.72rem; color: var(--fg-muted); }
+.tx-amount { font-weight: 600; color: var(--expense); white-space: nowrap; }
+.tx-amount.income { color: var(--income); }
+
+.hidden { display: none !important; }
