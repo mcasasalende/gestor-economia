@@ -1,3 +1,18 @@
+inference_strategy: hybrid
+priority_keywords:
+  - alquiler
+  - rent
+  - booking
+  - hotel
+  - airbnb
+  - splintersmma
+  - splinters
+  - gym
+  - ahorro
+  - saving
+  - salary
+  - nomina
+
 categories:
   - name: "Supermarket"
     keywords:
