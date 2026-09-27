@@ -1,6 +1,8 @@
+import csv
 import os
 import yaml
 from datetime import datetime
+from pathlib import Path
 from sqlalchemy import create_engine, text
 import pandas as pd
 
@@ -179,8 +181,110 @@ class NormalizedDatabase:
             })
             conn.commit()
 
+    def _default_training_csv(self) -> Path:
+        return Path(__file__).parent.parent.parent / "data" / "training" / "training_data.csv"
+
+    def _format_date_for_csv(self, date_val) -> str:
+        if date_val is None or (isinstance(date_val, float) and pd.isna(date_val)):
+            return ""
+        s = str(date_val).strip()
+        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d/%m/%Y"):
+            try:
+                return datetime.strptime(s[:10], fmt).strftime("%d/%m/%Y")
+            except ValueError:
+                continue
+        # already DD/MM/YYYY
+        if "/" in s and len(s.split("/")[0]) == 2:
+            return s
+        return s
+
+    def persist_manual_correction(self, description: str, amount: float, date_val, category_name: str, csv_path: str | Path | None = None) -> bool:
+        """Append a manual correction to training_data.csv (durable, survives DB wipe)."""
+        try:
+            target = Path(csv_path) if csv_path else self._default_training_csv()
+            target.parent.mkdir(parents=True, exist_ok=True)
+
+            date_str = self._format_date_for_csv(date_val)
+            desc = (description or "").strip()
+            cat = (category_name or "").strip()
+            if not desc or not cat:
+                return False
+
+            # deduplicate against existing CSV (concept + amount + category)
+            if target.exists() and target.stat().st_size > 0:
+                try:
+                    existing = pd.read_csv(target)
+                    if not existing.empty and 'concept' in existing.columns:
+                        # exact concept+category match and amount within 0.001
+                        mask = (existing['concept'].astype(str).str.strip() == desc) & (existing['category'].astype(str).str.strip() == cat)
+                        if 'amount' in existing.columns:
+                            try:
+                                mask = mask & (pd.to_numeric(existing['amount'], errors='coerce').fillna(0).sub(float(amount)).abs() < 0.001)
+                            except Exception:
+                                pass
+                        if mask.any():
+                            return False
+                        # next id
+                        try:
+                            next_id = int(pd.to_numeric(existing['id'], errors='coerce').max()) + 1
+                        except Exception:
+                            next_id = len(existing) + 1
+                    else:
+                        next_id = 1
+                except pd.errors.EmptyDataError:
+                    next_id = 1
+                header = False
+            else:
+                existing = None
+                next_id = 1
+                header = True
+                # need to write header; will be handled by to_csv header logic below
+                if target.exists():
+                    header = target.stat().st_size == 0
+                else:
+                    header = True
+
+            # if we already determined header/mask, reconstruct flag
+            if target.exists() and target.stat().st_size > 0:
+                header = False
+            else:
+                header = True
+
+            row = pd.DataFrame([{
+                'id': next_id,
+                'date': date_str,
+                'concept': desc,
+                'amount': float(amount) if amount is not None else "",
+                'category': cat,
+            }])
+            # Use csv quoting for commas in concept
+            row.to_csv(target, mode='a', header=header, index=False, quoting=csv.QUOTE_MINIMAL)
+            return True
+        except Exception as e:
+            print(f"Warning: could not persist manual correction to CSV: {e}")
+            return False
+
+    def persist_all_manual_to_csv(self, csv_path: str | Path | None = None) -> int:
+        """Bulk-export all manual rows not yet in CSV (used as backup before DB wipe)."""
+        try:
+            df_manual = pd.read_sql(text(
+                "SELECT date, description, amount, category_name FROM transactions WHERE prediction_source='manual'"
+            ), self.engine)
+        except Exception as e:
+            print(f"Warning: could not read manual rows: {e}")
+            return 0
+        if df_manual.empty:
+            return 0
+        appended = 0
+        for _, r in df_manual.iterrows():
+            if self.persist_manual_correction(r['description'], r['amount'], r['date'], r['category_name'], csv_path=csv_path):
+                appended += 1
+        if appended:
+            print(f"Backed up {appended} manual correction(s) to training_data.csv")
+        return appended
+
     def set_manual_category(self, transaction_id: int, category_id: int, category_name: str):
-        """Set category from manual correction in the dashboard."""
+        """Set category from manual correction in the dashboard (also persists to CSV)."""
         self.update_transaction_category(
             transaction_id,
             category_id,
@@ -189,6 +293,16 @@ class NormalizedDatabase:
             prediction_confidence=1.0,
             prediction_source='manual',
         )
+        # persist to durable CSV so it survives normalized.db wipe on next ingest (main.py:55-59)
+        try:
+            with self.engine.connect() as conn:
+                row = conn.execute(text(
+                    "SELECT date, description, amount FROM transactions WHERE id = :id"
+                ), {"id": transaction_id}).fetchone()
+            if row:
+                self.persist_manual_correction(row[1], row[2], row[0], category_name)
+        except Exception as e:
+            print(f"Warning: manual DB update succeeded but CSV persist failed: {e}")
 
     def get_manual_label_count(self) -> int:
         """Count transactions labeled manually via the dashboard."""

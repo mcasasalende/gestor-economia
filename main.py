@@ -53,10 +53,20 @@ def run_ingestion(file_path: str = None, move_raw: bool = True, from_raw: bool =
     print("\n=== INGESTION ===")
 
     if clear_db:
-        reset_database(normalized=False)
+        # backup manual corrections to durable CSV before wiping DB (dashboard saves are now also persisted on write)
         if NORMALIZED_DB.exists():
-            NORMALIZED_DB.unlink()
-            print(f"Removed: {NORMALIZED_DB}")
+            try:
+                db = NormalizedDatabase(str(NORMALIZED_DB))
+                db.persist_all_manual_to_csv(csv_path=str(TRAINING_CSV))
+            except Exception as e:
+                print(f"Warning: could not backup manual labels before wipe: {e}")
+        reset_database(normalized=False)
+        try:
+            if NORMALIZED_DB.exists():
+                NORMALIZED_DB.unlink()
+                print(f"Removed: {NORMALIZED_DB}")
+        except PermissionError:
+            print(f"Warning: could not remove {NORMALIZED_DB} (file may be in use)")
 
     if file_path is None:
         search_dir = str(RAW_DIR) if from_raw else None
